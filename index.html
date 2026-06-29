@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Training Log</title>
+
+<!-- Makes it open full-screen like a real app when added to Home Screen -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Training Log" />
+<meta name="theme-color" content="#f4f1ec" />
+
+<style>
+  :root{
+    --bg:#f4f1ec; --card:#fbfaf7; --ink:#2b2926; --sub:#8a847c;
+    --line:#e3ddd3; --accent:#6b6357; --accentSoft:#ece7df; --good:#7c8a6b;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  }
+  input{font-family:inherit;}
+  button{font-family:inherit; cursor:pointer;}
+
+  .header{
+    padding:calc(20px + env(safe-area-inset-top)) 20px 14px;
+    position:sticky; top:0; z-index:10;
+    background:rgba(244,241,236,0.95); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .titleRow{display:flex; justify-content:space-between; align-items:baseline;}
+  h1{margin:0; font-size:22px; font-weight:700; letter-spacing:-0.3px;}
+  .date{font-size:13px; color:var(--sub);}
+  .tabs{display:flex; gap:6px; margin-top:14px; background:var(--accentSoft); padding:4px; border-radius:12px;}
+  .tab{flex:1; padding:9px 0; border:none; border-radius:10px; background:transparent; color:var(--sub); font-weight:500; font-size:14px;}
+  .tab.active{background:var(--card); color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+
+  .dayRow{display:flex; gap:10px; padding:16px 16px;}
+  .dayPill{flex:1; padding:11px 0; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); font-weight:600; font-size:15px;}
+  .dayPill.active{border-color:var(--accent); background:var(--accent); color:#fff;}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin:0 16px 12px;}
+  .exHead{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
+  .exName{flex:1; border:none; background:transparent; font-size:16px; font-weight:600; color:var(--ink); padding:2px 0;}
+  .exDel{border:none; background:transparent; color:var(--sub); font-size:18px; padding:4px;}
+  .last{font-size:12px; color:var(--good); margin-bottom:10px;}
+  .colLabels{display:flex; gap:8px; margin-bottom:6px; padding-left:26px;}
+  .lbl{flex:1; font-size:11px; color:var(--sub); text-transform:uppercase; letter-spacing:0.5px; text-align:center;}
+  .lblSpace{width:30px;}
+  .setRow{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+  .setNum{width:18px; color:var(--sub); font-size:13px; font-weight:600;}
+  .num{flex:1; min-width:0; padding:10px 8px; border:1px solid var(--line); border-radius:10px; font-size:16px; background:#fff; color:var(--ink); text-align:center;}
+  .setDel{width:30px; border:none; background:transparent; color:var(--line); font-size:20px;}
+  .addSet{width:100%; margin-top:4px; padding:8px 0; border:1px dashed var(--line); border-radius:10px; background:transparent; color:var(--sub); font-size:13px; font-weight:500;}
+  .addEx{display:block; width:calc(100% - 32px); margin:4px 16px 8px; padding:12px 0; border:1px dashed var(--accent); border-radius:12px; background:transparent; color:var(--accent); font-size:14px; font-weight:600;}
+  .vol{text-align:center; color:var(--sub); font-size:13px; margin:6px 0 2px;}
+
+  .empty{text-align:center; color:var(--sub); margin-top:60px; padding:0 40px;}
+  .histHead{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .histTitle{font-weight:700; font-size:15px;}
+  .histDate{color:var(--sub); font-size:13px; margin-left:8px;}
+  .histDel{border:none; background:transparent; color:var(--sub); font-size:13px;}
+  .histEx{margin-bottom:6px;}
+  .histExName{font-size:14px; font-weight:600;}
+  .histSets{font-size:13px; color:var(--sub);}
+  .histVol{font-size:12px; color:var(--good); margin-top:8px;}
+
+  .saveBar{position:fixed; bottom:0; left:0; right:0; padding:12px 16px calc(24px + env(safe-area-inset-bottom)); background:rgba(244,241,236,0.96); backdrop-filter:blur(8px); border-top:1px solid var(--line);}
+  .saveBtn{width:100%; padding:15px 0; border:none; border-radius:14px; background:var(--ink); color:#fff; font-size:16px; font-weight:700; letter-spacing:0.2px;}
+  .saveBtn.saved{background:var(--good);}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="titleRow">
+    <h1>Training Log</h1>
+    <span class="date" id="todayDate"></span>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tabLog" onclick="setView('log')">Log</button>
+    <button class="tab" id="tabHistory" onclick="setView('history')">History</button>
+  </div>
+</div>
+
+<div id="logView">
+  <div class="dayRow">
+    <button class="dayPill active" id="dayUpper" onclick="setDay('Upper')">Upper Body</button>
+    <button class="dayPill" id="dayLower" onclick="setDay('Lower')">Lower Body</button>
+  </div>
+  <div id="exerciseList"></div>
+  <button class="addEx" onclick="addExercise()">+ Add exercise</button>
+  <div class="vol" id="volLine"></div>
+</div>
+
+<div id="historyView" class="hidden"></div>
+
+<div class="saveBar" id="saveBar">
+  <button class="saveBtn" id="saveBtn" onclick="saveSession()">Save session</button>
+</div>
+
+<script>
+const STORE_KEY = "workout_sessions_v1";
+const TEMPLATES = {
+  Upper: ["Chest Press (Machine)","Lat Pulldown","Shoulder Press (Machine)","Seated Row","Bicep Curl","Tricep Pushdown"],
+  Lower: ["Leg Press","Leg Curl","Leg Extension","Calf Raise","Hip Abduction","Hip Adduction"]
+};
+
+let state = { view:"log", day:"Upper", exercises:[], sessions:[], savedToday:false };
+
+// ---------- storage ----------
+function loadSessions(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    state.sessions = raw ? JSON.parse(raw) : [];
+  }catch(e){ state.sessions = []; }
+}
+function persist(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state.sessions)); }catch(e){}
+}
+
+// ---------- helpers ----------
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(iso){
+  return new Date(iso+"T00:00:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+function buildDraft(day){
+  return TEMPLATES[day].map(name => ({ id:uid(), name, sets:[{weight:"",reps:""}] }));
+}
+function lastOfDay(day){
+  const sorted = [...state.sessions].sort((a,b)=> a.date<b.date?1:-1);
+  return sorted.find(s=>s.day===day);
+}
+
+// ---------- view switching ----------
+function setView(v){
+  state.view = v;
+  document.getElementById("tabLog").classList.toggle("active", v==="log");
+  document.getElementById("tabHistory").classList.toggle("active", v==="history");
+  document.getElementById("logView").classList.toggle("hidden", v!=="log");
+  document.getElementById("historyView").classList.toggle("hidden", v!=="history");
+  document.getElementById("saveBar").classList.toggle("hidden", v!=="log");
+  if(v==="history") renderHistory();
+}
+function setDay(d){
+  state.day = d;
+  state.exercises = buildDraft(d);
+  state.savedToday = false;
+  document.getElementById("dayUpper").classList.toggle("active", d==="Upper");
+  document.getElementById("dayLower").classList.toggle("active", d==="Lower");
+  updateSaveBtn();
+  renderLog();
+}
+
+// ---------- draft mutations ----------
+function addSet(exId){
+  const ex = state.exercises.find(e=>e.id===exId);
+  if(ex){ ex.sets.push({weight:"",reps:""}); renderLog(); }
+}
+function removeSet(exId, idx){
+  const ex = state.exercises.find(e=>e.id===exId);
+  if(ex){ ex.sets.splice(idx,1); if(ex.sets.length===0) ex.sets.push({weight:"",reps:""}); renderLog(); }
+}
+function removeExercise(exId){
+  state.exercises = state.exercises.filter(e=>e.id!==exId);
+  renderLog();
+}
+function addExercise(){
+  state.exercises.push({ id:uid(), name:"", sets:[{weight:"",reps:""}] });
+  renderLog();
+}
+// these update state WITHOUT re-render so inputs keep focus while typing
+function onName(exId, val){ const ex=state.exercises.find(e=>e.id===exId); if(ex) ex.name=val; }
+function onSet(exId, idx, field, val){
+  const ex=state.exercises.find(e=>e.id===exId);
+  if(ex && ex.sets[idx]) ex.sets[idx][field]=val;
+  updateVolLine();
+}
+
+// ---------- rendering ----------
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function renderLog(){
+  const last = lastOfDay(state.day);
+  const lastByName = {};
+  if(last) last.exercises.forEach(e=> lastByName[e.name]=e.sets);
+
+  const list = document.getElementById("exerciseList");
+  list.innerHTML = state.exercises.map(ex=>{
+    const lref = lastByName[ex.name];
+    const lastLine = lref
+      ? `<div class="last">Last: ${lref.map(s=>`${s.weight||"–"}×${s.reps||"–"}`).join("  ·  ")}</div>`
+      : "";
+    const setsHtml = ex.sets.map((s,i)=>{
+      const wPh = (lref && lref[i]) ? lref[i].weight : "–";
+      const rPh = (lref && lref[i]) ? lref[i].reps : "–";
+      return `<div class="setRow">
+        <span class="setNum">${i+1}</span>
+        <input class="num" type="number" inputmode="decimal" value="${esc(s.weight)}" placeholder="${esc(String(wPh))}"
+          oninput="onSet('${ex.id}',${i},'weight',this.value)">
+        <input class="num" type="number" inputmode="numeric" value="${esc(s.reps)}" placeholder="${esc(String(rPh))}"
+          oninput="onSet('${ex.id}',${i},'reps',this.value)">
+        <button class="setDel" onclick="removeSet('${ex.id}',${i})">−</button>
+      </div>`;
+    }).join("");
+    return `<div class="card">
+      <div class="exHead">
+        <input class="exName" value="${esc(ex.name)}" placeholder="Exercise name" oninput="onName('${ex.id}',this.value)">
+        <button class="exDel" onclick="removeExercise('${ex.id}')">×</button>
+      </div>
+      ${lastLine}
+      <div class="colLabels"><div class="lbl">lbs</div><div class="lbl">reps</div><div class="lblSpace"></div></div>
+      ${setsHtml}
+      <button class="addSet" onclick="addSet('${ex.id}')">+ Add set</button>
+    </div>`;
+  }).join("");
+  updateVolLine();
+}
+
+function currentVolume(){
+  return state.exercises.reduce((tot,ex)=>
+    tot + ex.sets.reduce((t,s)=> t + (parseFloat(s.weight)||0)*(parseFloat(s.reps)||0), 0), 0);
+}
+function updateVolLine(){
+  const v = currentVolume();
+  document.getElementById("volLine").textContent = v>0 ? `Session volume: ${v.toLocaleString()} lbs` : "";
+}
+function updateSaveBtn(){
+  const btn = document.getElementById("saveBtn");
+  btn.textContent = state.savedToday ? "✓ Saved — log again?" : "Save session";
+  btn.classList.toggle("saved", state.savedToday);
+}
+
+function saveSession(){
+  const cleaned = state.exercises.map(ex=>({
+    name: (ex.name||"").trim(),
+    sets: ex.sets.filter(s=> s.weight!=="" || s.reps!=="").map(s=>({weight:s.weight, reps:s.reps}))
+  })).filter(ex=> ex.name && ex.sets.length>0);
+  if(cleaned.length===0) return;
+
+  const date = todayKey();
+  const session = { id:`${date}-${state.day}-${uid()}`, date, day:state.day, exercises:cleaned };
+  state.sessions.unshift(session);
+  persist();
+  state.savedToday = true;
+  updateSaveBtn();
+}
+
+function deleteSession(id){
+  state.sessions = state.sessions.filter(s=>s.id!==id);
+  persist();
+  renderHistory();
+}
+
+function renderHistory(){
+  const sorted = [...state.sessions].sort((a,b)=> a.date<b.date?1:-1);
+  const wrap = document.getElementById("historyView");
+  if(sorted.length===0){
+    wrap.innerHTML = `<div class="empty">No sessions logged yet. Your saved workouts will show up here.</div>`;
+    return;
+  }
+  wrap.innerHTML = sorted.map(s=>{
+    const vol = s.exercises.reduce((t,e)=> t + e.sets.reduce((tt,st)=> tt + (parseFloat(st.weight)||0)*(parseFloat(st.reps)||0),0),0);
+    const exHtml = s.exercises.map(e=>`
+      <div class="histEx">
+        <div class="histExName">${esc(e.name)}</div>
+        <div class="histSets">${e.sets.map(st=>`${st.weight||"–"}×${st.reps||"–"}`).join("  ·  ")}</div>
+      </div>`).join("");
+    return `<div class="card">
+      <div class="histHead">
+        <div><span class="histTitle">${s.day} Body</span><span class="histDate">${fmtDate(s.date)}</span></div>
+        <button class="histDel" onclick="deleteSession('${s.id}')">Delete</button>
+      </div>
+      ${exHtml}
+      <div class="histVol">Volume: ${vol.toLocaleString()} lbs</div>
+    </div>`;
+  }).join("");
+}
+
+// ---------- init ----------
+function init(){
+  document.getElementById("todayDate").textContent = fmtDate(todayKey());
+  loadSessions();
+  state.exercises = buildDraft(state.day);
+  renderLog();
+  updateSaveBtn();
+}
+init();
+</script>
+</body>
+</html>
