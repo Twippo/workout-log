@@ -663,11 +663,13 @@ function renderCoach(){
     <div style="height:12px"></div>
     <div class="card">
       <div style="font-size:13px;font-weight:600;margin-bottom:8px;">${hasKey?"✓ API key saved":"Anthropic API key"}</div>
-      <div class="statRow" style="margin-bottom:0;">
-        <input class="statInput" id="apiKeyInput" type="password" placeholder="${hasKey?"••••••••  (tap to update)":"sk-ant-..."}" style="font-size:13px;">
+      <div class="statRow" style="margin-bottom:8px;">
+        <input class="statInput" id="apiKeyInput" type="text" placeholder="${hasKey?"sk-ant-… (saved)":"sk-ant-..."}" style="font-size:12px;letter-spacing:0.5px;">
         <button class="miniBtn" onclick="saveKeyFromInput()">${hasKey?"Update":"Save"}</button>
       </div>
-      <div style="font-size:11px;color:var(--sub);margin-top:8px;">Stored on your device only — never in the app code.</div>
+      <button class="miniBtn ghost" onclick="testConnection()" style="width:100%;margin-bottom:8px;">Test connection</button>
+      <div id="diagOut" style="font-size:12px;color:var(--sub);line-height:1.6;word-break:break-all;"></div>
+      <div style="font-size:11px;color:var(--sub);margin-top:4px;">Key stored on your device only.</div>
     </div>
     <div style="padding:0 16px 12px;">
       <div class="qBtns">
@@ -696,6 +698,44 @@ function saveKeyFromInput(){
 }
 
 function clearChat(){ chatHistory=[]; renderCoach(); }
+
+async function testConnection(){
+  const keyField=document.getElementById("apiKeyInput");
+  if(keyField&&keyField.value.trim()) saveKey(keyField.value.trim());
+  const key=getKey();
+  const out=document.getElementById("diagOut");
+  if(!out) return;
+
+  if(!key){
+    out.innerHTML='<span style="color:var(--accent)">⚠ No key found in storage. Paste your key above and tap Save first.</span>';
+    return;
+  }
+  out.innerHTML='⏳ Testing... (key: '+key.slice(0,12)+'...)';
+
+  try{
+    const controller=new AbortController();
+    setTimeout(()=>controller.abort(),15000);
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      signal:controller.signal,
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":key,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-client-side-api-key-access":"true"
+      },
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:20,messages:[{role:"user",content:"say hi"}]})
+    });
+    const text=await res.text();
+    if(res.ok){
+      out.innerHTML='<span style="color:var(--good)">✓ Connected! Status '+res.status+'. Response: '+esc(text.slice(0,80))+'</span>';
+    } else {
+      out.innerHTML='<span style="color:var(--accent)">⚠ HTTP '+res.status+': '+esc(text.slice(0,200))+'</span>';
+    }
+  }catch(err){
+    out.innerHTML='<span style="color:var(--accent)">⚠ '+esc(err.name+': '+err.message)+'</span>';
+  }
+}
 
 function quickAsk(prompt){ document.getElementById("chatInput").value=prompt; sendChat(); }
 
