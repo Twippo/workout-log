@@ -736,75 +736,56 @@ async function testConnection(){
 function quickAsk(prompt){ document.getElementById("chatInput").value=prompt; sendChat(); }
 
 async function sendChat(){
-  // Auto-save key from field if present
   const keyField=document.getElementById("apiKeyInput");
   if(keyField&&keyField.value.trim()) saveKey(keyField.value.trim());
 
   const key=getKey();
+  const btn=document.getElementById("chatSendBtn");
+  const msgsEl=document.getElementById("chatMsgs");
+
   if(!key){
-    const m=document.getElementById("chatMsgs");
-    if(m) m.innerHTML+=`<div class="chatBubble ai" style="border-color:var(--accent);color:var(--accent)">⚠ No API key saved — paste your key above and tap Save.</div>`;
+    if(msgsEl) msgsEl.innerHTML+=`<div class="chatBubble ai" style="border-color:var(--accent);color:var(--accent)">⚠ No API key — paste it above and tap Update.</div>`;
     return;
   }
   const inputEl=document.getElementById("chatInput");
-  const question=(inputEl.value||"").trim(); if(!question) return;
+  const question=(inputEl.value||"").trim();
+  if(!question) return;
   inputEl.value="";
 
-  const btn=document.getElementById("chatSendBtn");
   if(btn){btn.disabled=true;btn.textContent="Thinking…";}
-
-  const msgsEl=document.getElementById("chatMsgs");
-  if(!msgsEl){ if(btn){btn.disabled=false;btn.textContent="Send";} return; }
+  if(!msgsEl){if(btn){btn.disabled=false;btn.textContent="Send";}return;}
   msgsEl.innerHTML+=`<div class="chatBubble user">${esc(question)}</div>`;
   msgsEl.innerHTML+=`<div class="chatBubble thinking" id="thinkDot">···</div>`;
   msgsEl.scrollTop=msgsEl.scrollHeight;
 
-  const systemPrompt=`You are an experienced strength and conditioning coach reviewing a client's real training log.
-
-Client: Ethan, 23M, 5'11". Current goal: reach 155 lbs lean (started at 140 lbs). Trains at Planet Fitness — Smith machines, dumbbells, cables, no free barbells. Push/Pull/Leg split, 3–4 days/week, hypertrophy-focused (8–12 rep range). Progress tracked via Epley estimated 1RM: weight × (1 + reps/30).
-
-Routine:
-- Push: Flat DB Bench, Smith Shoulder Press, DB Lateral Raise, Chest Flys, Tricep Extension
-- Pull: Lat Pulldown, Seated Cable Row, Rear Delt Fly, DB Curl, Bouldering
-- Leg: Smith Squat, RDL, Bulgarian Split Squat, Leg Curls, Calf Raises
-
-Key context: Ethan has a history of 2–6 month on/off training cycles. Pull sessions are consistently underrepresented vs push. Consistency is the primary lever, not optimization. Be specific — reference actual numbers. Keep responses concise and actionable.
-
-Current training data:
-${coachContext()}`;
-
-  const history=chatHistory.slice(-6).map(m=>({role:m.role==="ai"?"assistant":"user",content:m.content}));
-  history.push({role:"user",content:question});
-
   try{
+    let ctx="No sessions yet.";
+    try{ ctx=coachContext(); }catch(e){ ctx="Could not load training data."; }
+
+    const systemPrompt="You are a strength coach. Client: Ethan, 23M, 5'11\", goal 155 lbs from 140 lbs. Planet Fitness (Smith machines, dumbbells, cables). Push/Pull/Leg, hypertrophy 8-12 reps. Be concise and reference actual numbers.\n\nData:\n"+ctx;
+    const history=chatHistory.slice(-4).map(m=>({role:m.role==="ai"?"assistant":"user",content:m.content}));
+    history.push({role:"user",content:question});
+
     const fetchPromise=fetch("https://workout.ethanbennettis.workers.dev/",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "x-api-key":key,
-        "anthropic-version":"2023-06-01",
-      },
-      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:600,system:systemPrompt,messages:history})
+      headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:500,system:systemPrompt,messages:history})
     });
-    const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error("Request timed out — try again.")),25000));
+    const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error("Timed out — try again.")),25000));
     const res=await Promise.race([fetchPromise,timeoutPromise]);
     const data=await res.json();
-    if(data.error) throw new Error(`API error (${data.error.type}): ${data.error.message}`);
-    if(!data.content||!data.content[0]) throw new Error("Empty response received — please try again.");
+    if(data.error) throw new Error("API: "+data.error.message);
+    if(!data.content||!data.content[0]) throw new Error("Empty response — try again.");
     const reply=data.content[0].text;
     chatHistory.push({role:"user",content:question});
     chatHistory.push({role:"ai",content:reply});
     const m=document.getElementById("chatMsgs");
     if(m) m.innerHTML+=`<div class="chatBubble ai">${fmtAI(reply)}</div>`;
   }catch(err){
-    const msg=err.message||"Something went wrong — check your API key.";
-    console.error("Coach error:",err);
-    try{
-      const m=document.getElementById("chatMsgs");
-      if(m) m.innerHTML+=`<div class="chatBubble ai" style="border-color:var(--accent);color:var(--accent)">⚠ ${esc(msg)}</div>`;
-    }catch(e){ console.error("Error display failed:",e); }
+    console.error("Coach:",err);
+    const m=document.getElementById("chatMsgs");
+    if(m) m.innerHTML+=`<div class="chatBubble ai" style="border-color:var(--accent);color:var(--accent)">⚠ ${esc(err.message||"Something went wrong.")}</div>`;
   }finally{
-    // Always clean up — regardless of what happened above
     document.getElementById("thinkDot")?.remove();
     const b=document.getElementById("chatSendBtn");
     if(b){b.disabled=false;b.textContent="Send";}
@@ -812,6 +793,7 @@ ${coachContext()}`;
     if(m) m.scrollTop=99999;
   }
 }
+
 
 function exportData(){ const data={sessions:state.sessions,bodyweights:state.bw,goal:state.goal,exported:new Date().toISOString()}; const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`training-log-${todayKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
 function importData(input){ const f=input.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!confirm("Replace all current data with the imported backup?")){ input.value=""; return; } state.sessions=Array.isArray(d.sessions)?d.sessions:[]; state.bw=Array.isArray(d.bodyweights)?d.bodyweights:[]; if(typeof d.goal==="number")state.goal=d.goal; persistSessions(); persistBW(); renderStats(); alert("Import complete."); }catch(e){alert("Could not read that file.");} input.value=""; }; r.readAsText(f); }
