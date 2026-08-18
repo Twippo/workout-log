@@ -616,8 +616,8 @@ function copyForClaude(){
 // ── COACH ─────────────────────────────────────────────────────────────────────
 let chatHistory=[];
 
-function getKey(){ return localStorage.getItem(API_KEY)||""; }
-function saveKey(k){ localStorage.setItem(API_KEY,k.trim()); }
+function getKey(){ const k=localStorage.getItem(API_KEY)||""; return k.replace(/[^\x20-\x7E]/g,'').trim(); }
+function saveKey(k){ localStorage.setItem(API_KEY, k.replace(/[^\x20-\x7E]/g,'').trim()); }
 
 function coachContext(){
   const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-28);
