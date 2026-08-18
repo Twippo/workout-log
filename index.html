@@ -951,7 +951,7 @@ async function sendChat(){
     const fetchPromise=fetch("https://workout.ethanbennettis.workers.dev/",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
-      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:500,system:systemPrompt,messages:history})
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1024,system:systemPrompt,messages:history})
     });
     const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error("Timed out — try again.")),25000));
     const res=await Promise.race([fetchPromise,timeoutPromise]);
