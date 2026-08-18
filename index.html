@@ -777,15 +777,17 @@ ${coachContext()}`;
   history.push({role:"user",content:question});
 
   try{
-    const res=await fetch("https://workout.ethanbennettis.workers.dev/",{
+    const fetchPromise=fetch("https://workout.ethanbennettis.workers.dev/",{
       method:"POST",
       headers:{
         "Content-Type":"application/json",
         "x-api-key":key,
         "anthropic-version":"2023-06-01",
       },
-      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1024,system:systemPrompt,messages:history})
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:600,system:systemPrompt,messages:history})
     });
+    const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error("Request timed out — try again.")),25000));
+    const res=await Promise.race([fetchPromise,timeoutPromise]);
     const data=await res.json();
     if(data.error) throw new Error(`API error (${data.error.type}): ${data.error.message}`);
     if(!data.content||!data.content[0]) throw new Error("Empty response received — please try again.");
