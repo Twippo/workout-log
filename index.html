@@ -713,16 +713,12 @@ async function testConnection(){
   out.innerHTML='⏳ Testing... (key: '+key.slice(0,12)+'...)';
 
   try{
-    const controller=new AbortController();
-    setTimeout(()=>controller.abort(),15000);
-    const res=await fetch("https://api.anthropic.com/v1/messages",{
+    const res=await fetch("https://workout.ethanbennettis.workers.dev/",{
       method:"POST",
-      signal:controller.signal,
       headers:{
         "Content-Type":"application/json",
         "x-api-key":key,
         "anthropic-version":"2023-06-01",
-        "anthropic-dangerous-client-side-api-key-access":"true"
       },
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:20,messages:[{role:"user",content:"say hi"}]})
     });
@@ -780,23 +776,16 @@ ${coachContext()}`;
   const history=chatHistory.slice(-6).map(m=>({role:m.role==="ai"?"assistant":"user",content:m.content}));
   history.push({role:"user",content:question});
 
-  // 30-second timeout
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),30000);
-
   try{
-    const res=await fetch("https://api.anthropic.com/v1/messages",{
+    const res=await fetch("https://workout.ethanbennettis.workers.dev/",{
       method:"POST",
-      signal:controller.signal,
       headers:{
         "Content-Type":"application/json",
         "x-api-key":key,
         "anthropic-version":"2023-06-01",
-        "anthropic-dangerous-client-side-api-key-access":"true"
       },
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1024,system:systemPrompt,messages:history})
     });
-    clearTimeout(timer);
     const data=await res.json();
     if(data.error) throw new Error(`API error (${data.error.type}): ${data.error.message}`);
     if(!data.content||!data.content[0]) throw new Error("Empty response received — please try again.");
@@ -806,10 +795,7 @@ ${coachContext()}`;
     const m=document.getElementById("chatMsgs");
     if(m) m.innerHTML+=`<div class="chatBubble ai">${fmtAI(reply)}</div>`;
   }catch(err){
-    clearTimeout(timer);
-    const msg=err.name==="AbortError"
-      ?"Request timed out after 30 seconds — check your connection and try again."
-      :(err.message||"Something went wrong — check your API key.");
+    const msg=err.message||"Something went wrong — check your API key.";
     console.error("Coach error:",err);
     try{
       const m=document.getElementById("chatMsgs");
